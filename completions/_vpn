@@ -1,0 +1,62 @@
+#compdef vpn
+
+_vpn_profiles() {
+    local pdir="$HOME/Library/Application Support/vpn/profiles"
+    local -a profs
+    [[ -d $pdir ]] || return
+    local p
+    for p in $pdir/*(N/); do
+        [[ -f $p/config && -f $p/user ]] && profs+=("${p:t}")
+    done
+    _describe 'profile' profs
+}
+
+_vpn() {
+    local -a cmds
+    cmds=(
+        'list:List profiles + status'
+        'ls:List profiles + status'
+        'add:Create/edit a profile'
+        'clone:Duplicate a profile (only asks for a new user)'
+        'cp:Duplicate a profile (only asks for a new user)'
+        'duplicate:Duplicate a profile (only asks for a new user)'
+        'remove:Remove a profile'
+        'rm:Remove a profile'
+        'start:🚀 Connect'
+        'token:📨 Send MFA token'
+        'stop:🛑 Disconnect (no args = whatever is active)'
+        'status:🔍 Profile diagnostics'
+        'log:📄 Tail logs (tail -f)'
+        'passwd:🔑 Change password (Keychain)'
+        'reset:🗑️  Factory-reset a profile'
+        'help:Help'
+    )
+
+    case $CURRENT in
+        2)
+            _describe 'command' cmds
+            ;;
+        3)
+            case "$words[2]" in
+                start|stop|status|log|passwd|reset|token|clone|cp|duplicate|remove|rm)
+                    _vpn_profiles
+                    ;;
+                add)
+                    _message 'name of the new profile (letters/digits/._-)'
+                    ;;
+            esac
+            ;;
+        4)
+            case "$words[2]" in
+                token)
+                    _message 'MFA code (6 digits)'
+                    ;;
+                clone|cp|duplicate)
+                    _message 'name of the new profile (letters/digits/._-)'
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+_vpn "$@"
