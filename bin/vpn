@@ -87,17 +87,24 @@ preauth_get_cookie() {
         echo ""
         return
     fi
-    # Follow the hostcheck_install redirect (sets SVPNCOOKIE) then the portal page.
-    local redir
+    # Follow the hostcheck_install redirect — that response is what sets SVPNCOOKIE.
+    local redir cookie
     redir=$(echo "$resp" | sed -nE 's/.*redir=([^,]+).*/\1/p' | head -1)
     if [ -n "$redir" ]; then
         curl -sk -b "$jar" -c "$jar" --max-time 15 \
             "https://$P_HOST:$P_PORT$redir" -o /dev/null 2>/dev/null
+    fi
+    cookie=$(awk '$6 == "SVPNCOOKIE" {print $7}' "$jar" | head -1)
+    # Deliberately NO portal GET on the happy path. Some gateways answer 403
+    # there and tear the session down server-side, so the cookie captured above
+    # would already be dead when openfortivpn fetches /remote/fortisslvpn_xml
+    # ("Could not get VPN configuration"). Only hit the portal as a fallback,
+    # when hostcheck alone yielded no cookie.
+    if [ -z "$cookie" ] && [ -n "$redir" ]; then
         curl -sk -b "$jar" -c "$jar" --max-time 15 \
             "https://$P_HOST:$P_PORT/sslvpn/portal/index.html" -o /dev/null 2>/dev/null
+        cookie=$(awk '$6 == "SVPNCOOKIE" {print $7}' "$jar" | head -1)
     fi
-    local cookie
-    cookie=$(awk '/SVPNCOOKIE/ {print $NF}' "$jar" | head -1)
     rm -f "$jar"
     echo "$cookie"
 }
